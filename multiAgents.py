@@ -209,7 +209,60 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def alphabeta(current_state, current_depth, current_index, max_depth, alpha, beta):
+
+            next_actions = current_state.getLegalActions(current_index)
+
+            # base case
+            if current_depth >= max_depth or not next_actions or current_state.isWin() or current_state.isLose():
+                return ('', self.evaluationFunction(current_state))
+
+            if current_index % n_agents == 0:  # maximizer turn
+                max_score = -float('inf')
+                max_action = ''
+                for next_action in next_actions:
+                    next_score = alphabeta(current_state.generateSuccessor(current_index, next_action),
+                                           current_depth + 1, ((current_index + 1) % n_agents), max_depth,
+                                           alpha, beta)[1]
+                    if max_score < next_score:
+                        max_score = next_score
+                        max_action = next_action
+
+                    # alpha beta pruning
+                    if max_score > beta:
+                        return max_action, max_score
+
+                    alpha = max(alpha, max_score)
+
+                return max_action, max_score
+
+            else:  # minimizer turn
+                min_score = float('inf')
+                min_action = ''
+                for next_action in next_actions:
+                    next_score = alphabeta(current_state.generateSuccessor(current_index, next_action),
+                                           current_depth + 1, ((current_index + 1) % n_agents), max_depth,
+                                           alpha, beta)[1]
+                    if min_score > next_score:
+                        min_score = next_score
+                        min_action = next_action
+
+                    # alpha beta pruning
+                    if min_score < alpha:
+                        return min_action, min_score
+
+                    beta = min(beta, min_score)
+
+                return min_action, min_score
+
+        # extract conditions
+        n_agents = gameState.getNumAgents()
+        max_depth = self.depth * n_agents + 1
+
+        # initialize alpha beta
+        alpha, beta = -float('inf'), float('inf')
+
+        return alphabeta(gameState, 1, 0, max_depth, alpha, beta)[0]  # return action
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -224,7 +277,40 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def expectimax(current_state, current_depth, current_index, max_depth):
+
+            next_actions = current_state.getLegalActions(current_index)
+
+            # base case
+            if current_depth >= max_depth or not next_actions or current_state.isWin() or current_state.isLose():
+                return ('', self.evaluationFunction(current_state))
+
+            if current_index % n_agents == 0:  # maximizer turn
+                max_score = -float('inf')
+                max_action = ''
+                for next_action in next_actions:
+                    next_score = expectimax(current_state.generateSuccessor(current_index, next_action),
+                                         current_depth + 1, ((current_index + 1) % n_agents), max_depth)[1]
+                    if max_score < next_score:
+                        max_score = next_score
+                        max_action = next_action
+
+                return max_action, max_score
+
+            else:  # minimizer turn
+                expect_score = 0
+                for next_action in next_actions:
+                    next_score = expectimax(current_state.generateSuccessor(current_index, next_action),
+                                         current_depth + 1, ((current_index + 1) % n_agents), max_depth)[1]
+                    expect_score += next_score/len(next_actions)
+
+                return ('', expect_score)
+
+        # extract conditions
+        n_agents = gameState.getNumAgents()
+        max_depth = self.depth * n_agents + 1
+
+        return expectimax(gameState, 1, 0, max_depth)[0]  # return action
 
 def betterEvaluationFunction(currentGameState):
     """
@@ -234,7 +320,51 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    def get_manhattan_distance(loc1, loc2):
+        return abs(loc1[0] - loc2[0]) + abs(loc1[1] - loc2[1])
+
+    # if currentGameState.isWin():
+    #     return float('inf')
+    # if currentGameState.isLose():
+    #     return -float('inf')
+
+    pacman = currentGameState.getPacmanPosition()
+    foods = currentGameState.getFood().asList() + currentGameState.getCapsules()
+    walls = currentGameState.getWalls()
+
+    # initialize queue
+    closed = set()
+    fringe = util.Queue()
+    depth = 0
+    fringe.push((pacman, depth))
+
+    # BFS to nearest food
+    while True:
+        if fringe.isEmpty():
+            break
+
+        node, depth = fringe.pop()
+
+        # break when search reaches any food
+        if node in foods:
+            break
+
+        # check if node is closed list
+        if node not in closed:
+            closed.add(node)
+
+            # expand
+            for dx, dy in zip([1, -1, 0, 0], [0, 0, 1, -1]):
+                x = node[0] + dx
+                y = node[1] + dy
+                if not walls[x][y]:
+                    fringe.push(((x, y), depth + 1))
+
+    n_food_left = len(foods)
+
+    eval = currentGameState.getScore() + -1 * depth + -10 * n_food_left
+
+    return eval
 
 # Abbreviation
 better = betterEvaluationFunction
